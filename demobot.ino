@@ -1,6 +1,7 @@
 #include <Servo.h>
 Servo servoch1;
 Servo servoch2;
+bool readerror=false;
 
 void setup() {
 pinMode(2, INPUT);
@@ -16,6 +17,7 @@ pinMode(12, OUTPUT);
 pinMode(13, OUTPUT);
 digitalWrite(12,LOW);
 digitalWrite(13,LOW);
+Serial.begin(9600);
 }
 
 void loop() {
@@ -26,6 +28,7 @@ void loop() {
   int ch3 = pulseIn(4, HIGH);
   int ch4 = pulseIn(5, HIGH);
   int ch5 = pulseIn(6, HIGH);
+  if(ch1==0||ch2==0||ch3==0||ch4==0||ch5==0) readerror=true;
   //int ch6 = pulseIn(7, HIGH);
   ch1=map(ch1, 1100,1875,-100,100);//tested max limits of each channel
   ch2=map(ch2, 1198,1870,-100,100);
@@ -33,7 +36,7 @@ void loop() {
   ch4=map(ch4, 1113,1905,-100,100);
   ch5=map(ch5, 997,2007,-100,100);
   //ch6=map(ch6, 997,2007,-100,100);
-  if(ch5>0){
+  if(ch5>0&&readerror==false){
     ch1=deadband(ch1);
     ch2=deadband(ch2);
     ch3=deadband(ch3);
@@ -54,7 +57,18 @@ void loop() {
     servoch2.writeMicroseconds(1500);
     digitalWrite(12,LOW);
     digitalWrite(13,LOW);
+    if(readerror==true) Serial.println("Channel Read Error");
   }
+  Serial.print(ch1);
+  Serial.print("   ");
+  Serial.print(ch2);
+  Serial.print("   ");
+  Serial.print(ch3);
+  Serial.print("   ");
+  Serial.print(ch4);
+  Serial.print("   ");
+  Serial.print(ch5);
+  Serial.println("");
 }
 
 int victormap(int ch, bool rev){
