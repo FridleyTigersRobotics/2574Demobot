@@ -43,8 +43,8 @@ void loop() {
     ch4=deadband(ch4);
     ch5=deadband(ch5);
    // ch6=deadband(ch6);
-    rightmotor=ch2+ch1;
-    leftmotor=ch2-ch1;
+    rightmotor=ch2-ch1;
+    leftmotor=ch2+ch1;
     servoch1.writeMicroseconds(victormap(leftmotor,false));
     servoch2.writeMicroseconds(victormap(rightmotor,false));
     if (ch3>50) digitalWrite(12,HIGH);//blow horn
