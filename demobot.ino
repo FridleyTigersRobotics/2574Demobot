@@ -58,6 +58,13 @@ void loop() {
     digitalWrite(12,LOW);
     digitalWrite(13,LOW);
     if(readerror==true) Serial.println("Channel Read Error");
+    int ch1 = pulseIn(2, HIGH); //read the pulse width of each channel
+    int ch2 = pulseIn(3, HIGH);
+    int ch3 = pulseIn(4, HIGH);
+    int ch4 = pulseIn(5, HIGH);
+    int ch5 = pulseIn(6, HIGH);
+    readerror=false;
+    if(ch1==0||ch2==0||ch3==0||ch4==0||ch5==0) readerror=true;
   }
   Serial.print(ch1);
   Serial.print("   ");
