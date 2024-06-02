@@ -4,10 +4,11 @@ Servo servoch1;
 Servo servoch2;
 bool readerror=false;
 
-float const gyroSensitivity   = 80.0; // From ADXRS450 datasheet.
-float const gyroRawNullOffset = 74.0; // Hard code for now to avoid calibration time at startup.
-float       currentAngle      = 0;    // Keep track of our current angle
-uint32_t    lastTimeUs        = 0;    // Time since last measurement in uS
+float const gyroSensitivity    = 80.0; // From ADXRS450 datasheet.
+float const gyroRawNullOffset  = 74.0; // Hard code for now to avoid calibration time at startup.
+float       currentAngle       = 0;    // Keep track of our current angle
+float       currentAnglularVel = 0;    // Keep track of our current angle
+uint32_t    lastTimeUs         = 0;    // Time since last measurement in uS
 
 
 
@@ -70,15 +71,60 @@ int16_t ReadGyroData( void )
 }
 
 
-void loop() {
+void Drive( int forwardSpeed, int turnSpeed )
+{
+  float turnSpeedAdj = 0.0;
 
-  int rightmotor=0;
-  int leftmotor=0;
+  // Experimentally found values.
+  uint16_t const minTurnSpeed        = 5;
+  float    const minSpeedToCorrect   = 30.0;
+  float    const speedCorrectionGain = 0.2;
+
+  if ( abs(turnSpeed) < minTurnSpeed && 
+       fabs(currentAnglularVel) > minSpeedToCorrect ) 
+  {
+    turnSpeedAdj = -currentAnglularVel * speedCorrectionGain;
+  }
+  else
+  {
+    turnSpeedAdj = turnSpeed;
+  }
+
+  int rightmotor = (float)forwardSpeed - turnSpeedAdj;
+  int leftmotor  = (float)forwardSpeed + turnSpeedAdj;
+
+  servoch1.writeMicroseconds( victormap( leftmotor,  false ) );
+  servoch2.writeMicroseconds( victormap( rightmotor, false ) );
+}
+
+
+void updateAngle( void )
+{
+    uint32_t currTimeUs         = micros();
+    float    elapsedTimeS       = ( currTimeUs - lastTimeUs ) * 1.0e-6;
+    float    gyroRateDegreePerS = ( ReadGyroData() - gyroRawNullOffset ) / gyroSensitivity;
+    float    angleChange        = gyroRateDegreePerS * elapsedTimeS;
+  
+    currentAngle       += angleChange;
+    currentAnglularVel = gyroRateDegreePerS;
+    lastTimeUs         = currTimeUs;
+}
+
+
+void loop() {
+  // Update angle between puleIn calls to be more accurate.
+  // pulseIn calls take a large amount of time.
+  updateAngle();
   int ch1 = pulseIn(PIN_CTRL_DRIVE_X, HIGH); //read the pulse width of each channel
+  updateAngle();
   int ch2 = pulseIn(PIN_CTRL_DRIVE_Y, HIGH);
+  updateAngle();
   int ch3 = pulseIn(PIN_CTRL_HORN, HIGH);
+  updateAngle();
   int ch4 = pulseIn(PIN_CTRL_LIGHT, HIGH);
+  updateAngle();
   int ch5 = pulseIn(PIN_CTRL_ROBOT_ENABLE, HIGH);
+  updateAngle();
   if(ch1==0||ch2==0||ch3==0||ch4==0||ch5==0) readerror=true;
   //int ch6 = pulseIn(PIN_UNUSED, HIGH);
   ch1=map(ch1, 1100,1875,-100,100);//tested max limits of each channel
@@ -94,10 +140,9 @@ void loop() {
     ch4=deadband(ch4);
     ch5=deadband(ch5);
    // ch6=deadband(ch6);
-    rightmotor=ch2-ch1;
-    leftmotor=ch2+ch1;
-    servoch1.writeMicroseconds(victormap(leftmotor,false));
-    servoch2.writeMicroseconds(victormap(rightmotor,false));
+
+    Drive( ch2, ch1 );
+    
     if (ch3>50) digitalWrite(PIN_HORN,HIGH);//blow horn
     else digitalWrite(PIN_HORN,LOW);
     if(ch4>50||ch4<-50) digitalWrite(PIN_LIGHTS,HIGH);//turn on lights
@@ -118,13 +163,6 @@ void loop() {
     if(ch1==0||ch2==0||ch3==0||ch4==0||ch5==0) readerror=true;
   }
 
-  uint32_t currTimeUs         = micros();
-  float    elapsedTimeS       = ( currTimeUs - lastTimeUs ) * 1.0e-6;
-  float    gyroRateDegreePerS = ( ReadGyroData() - gyroRawNullOffset ) / gyroSensitivity;
-  float    angleChange        = gyroRateDegreePerS * elapsedTimeS;
-
-  lastTimeUs    = currTimeUs;
-  currentAngle += angleChange;
 
   Serial.print(currentAngle);
   Serial.print("   ");
