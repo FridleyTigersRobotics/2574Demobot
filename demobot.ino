@@ -1,7 +1,15 @@
 #include <Servo.h>
+#include <SPI.h>
 Servo servoch1;
 Servo servoch2;
 bool readerror=false;
+
+float const gyroSensitivity   = 80.0; // From ADXRS450 datasheet.
+float const gyroRawNullOffset = 74.0; // Hard code for now to avoid calibration time at startup.
+float       currentAngle      = 0;    // Keep track of our current angle
+uint32_t    lastTimeUs        = 0;    // Time since last measurement in uS
+
+
 
 #define PIN_CTRL_DRIVE_X      ( 2 )
 #define PIN_CTRL_DRIVE_Y      ( 3 )
@@ -12,10 +20,14 @@ bool readerror=false;
 #define PIN_SERVO1            ( 8 )
 #define PIN_SERVO_RESERVED_0  ( 9 )
 #define PIN_SERVO_RESERVED_1  ( 10 )
-#define PIN_SERVO2            ( 11 )
-#define PIN_HORN              ( 12 )
-#define PIN_LIGHTS            ( 13 )
+#define PIN_SPI_MOSI          ( 11 )
+#define PIN_SPI_MISO          ( 12 )
+#define PIN_SPI_SCK           ( 13 )
 
+#define PIN_LIGHTS            ( A0 )
+#define PIN_HORN              ( A1 )
+#define PIN_SERVO2            ( A2 )
+#define PIN_SPI_CS            ( A3 )
 
 void setup() {
 pinMode(PIN_CTRL_DRIVE_X, INPUT);
@@ -31,10 +43,35 @@ pinMode(PIN_HORN, OUTPUT);
 pinMode(PIN_LIGHTS, OUTPUT);
 digitalWrite(PIN_HORN,LOW);
 digitalWrite(PIN_LIGHTS,LOW);
+
 Serial.begin(9600);
+SPI.begin();
+pinMode(PIN_SPI_CS, OUTPUT);
+digitalWrite(PIN_SPI_CS,HIGH);
+SPI.setBitOrder(MSBFIRST);
+SPI.setClockDivider(SPI_CLOCK_DIV16); 
+SPI.setDataMode(SPI_MODE0);
+delay(100);
 }
 
+
+int16_t ReadGyroData( void )
+{
+  digitalWrite(PIN_SPI_CS, LOW);
+  int16_t result0 = SPI.transfer(0x20);
+  int16_t result1 = SPI.transfer(0x00);
+  int16_t result2 = SPI.transfer(0x00);
+  int16_t result3 = SPI.transfer(0x00);
+  
+  int16_t result = ( ( 0x03 & result0 ) << 14 ) | ( result1 << 6 ) | ( result2 >> 2 );
+
+  digitalWrite(PIN_SPI_CS, HIGH);
+  return result;
+}
+
+
 void loop() {
+
   int rightmotor=0;
   int leftmotor=0;
   int ch1 = pulseIn(PIN_CTRL_DRIVE_X, HIGH); //read the pulse width of each channel
@@ -80,6 +117,17 @@ void loop() {
     readerror=false;
     if(ch1==0||ch2==0||ch3==0||ch4==0||ch5==0) readerror=true;
   }
+
+  uint32_t currTimeUs         = micros();
+  float    elapsedTimeS       = ( currTimeUs - lastTimeUs ) * 1.0e-6;
+  float    gyroRateDegreePerS = ( ReadGyroData() - gyroRawNullOffset ) / gyroSensitivity;
+  float    angleChange        = gyroRateDegreePerS * elapsedTimeS;
+
+  lastTimeUs    = currTimeUs;
+  currentAngle += angleChange;
+
+  Serial.print(currentAngle);
+  Serial.print("   ");
   Serial.print(ch1);
   Serial.print("   ");
   Serial.print(ch2);
