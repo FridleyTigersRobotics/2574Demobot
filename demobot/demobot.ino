@@ -130,10 +130,10 @@ void loop() {
   updateAngle();
   if(ch1==0||ch2==0||ch3==0||ch4==0||ch5==0) readerror=true;
   //int ch6 = pulseIn(PIN_UNUSED, HIGH);
-  ch1=map(ch1, 1100,1875,-100,100);//tested max limits of each channel
-  ch2=map(ch2, 1198,1870,-100,100);
-  ch3=map(ch3, 1139,1820,-100,100);
-  ch4=map(ch4, 1113,1905,-100,100);
+  ch1=map(ch1, 1139,1820,-100,100);//tested max limits of each channel
+  ch2=map(ch2, 1113,1905,-100,100);
+  ch3=map(ch3, 1198,1870,-100,100);
+  ch4=map(ch4, 1100,1875,-100,100);
   ch5=map(ch5, 997,2007,-100,100);
   //ch6=map(ch6, 997,2007,-100,100);
   if(ch5>0&&readerror==false){
